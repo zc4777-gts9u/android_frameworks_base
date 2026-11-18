@@ -8079,4 +8079,7 @@
     <bool name="config_disable_video_capability_when_wfc_off">false</bool>
     <!-- Sensor angle for Samsung's optional face HAL rotation extension; -1 disables it. -->
     <integer name="config_faceAuthVendorSensorOrientation">-1</integer>
+
+    <!-- Whether the default AIDL face sensor needs a HAL challenge to reset lockout. -->
+    <bool name="config_faceAidlResetLockoutRequiresChallenge">false</bool>
 </resources>

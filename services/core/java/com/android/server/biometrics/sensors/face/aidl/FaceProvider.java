@@ -52,6 +52,7 @@ import android.util.Slog;
 import android.util.proto.ProtoOutputStream;
 import android.view.Surface;
 
+import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.biometrics.AuthenticationStatsBroadcastReceiver;
 import com.android.server.biometrics.AuthenticationStatsCollector;
@@ -241,7 +242,7 @@ public class FaceProvider implements IBinder.DeathRecipient, ServiceProvider {
         } else {
             Slog.d(getTag(), "Adding AIDL configs");
             for (SensorProps prop : props) {
-                addAidlSensors(prop, resetLockoutRequiresChallenge);
+                addAidlSensors(prop);
             }
         }
     }
@@ -275,8 +276,12 @@ public class FaceProvider implements IBinder.DeathRecipient, ServiceProvider {
         Slog.d(getTag(), "Added: " + mFaceSensors.get(sensorId));
     }
 
-    private void addAidlSensors(SensorProps prop, boolean resetLockoutRequiresChallenge) {
+    private void addAidlSensors(SensorProps prop) {
         final int sensorId = prop.commonProps.sensorId;
+        // AIDL HALs may require a challenge without using the HIDL adapter.
+        final boolean resetLockoutRequiresChallenge = "default".equals(mHalInstanceName)
+                && mContext.getResources().getBoolean(
+                        R.bool.config_faceAidlResetLockoutRequiresChallenge);
         final Sensor sensor = new Sensor(this, mContext, mHandler, prop, mBiometricContext,
                 resetLockoutRequiresChallenge);
         sensor.init(mLockoutResetDispatcher, this);
