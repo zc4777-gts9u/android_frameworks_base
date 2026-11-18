@@ -161,9 +161,28 @@ public final class AidlConversionUtils {
 
     @NonNull
     public static FaceEnrollFrame toFrameworkEnrollmentFrame(@NonNull EnrollmentFrame frame) {
-        return new FaceEnrollFrame(
-                toFrameworkCell(frame.cell),
-                toFrameworkEnrollmentStage(frame.stage),
+        return toFrameworkEnrollmentFrame(frame, false /* samsungPoseEnrollment */);
+    }
+
+    @NonNull
+    public static FaceEnrollFrame toFrameworkEnrollmentFrame(@NonNull EnrollmentFrame frame,
+            boolean samsungPoseEnrollment) {
+        int stage = toFrameworkEnrollmentStage(frame.stage);
+        if (samsungPoseEnrollment) {
+            // CYG1 CENTER / UP stages, including their glasses-pass variants.
+            // Preserve the requested pose instead of discarding it as UNKNOWN.
+            switch (frame.stage) {
+                case 100:
+                case 110:
+                    stage = FaceEnrollStages.HOLD_STILL_IN_CENTER;
+                    break;
+                case 101:
+                case 111:
+                    stage = FaceEnrollStages.ENROLLING_MOVEMENT_1;
+                    break;
+            }
+        }
+        return new FaceEnrollFrame(toFrameworkCell(frame.cell), stage,
                 toFrameworkBaseFrame(frame.data));
     }
 

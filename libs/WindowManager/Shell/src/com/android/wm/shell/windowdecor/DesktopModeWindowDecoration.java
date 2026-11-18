@@ -1109,6 +1109,9 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
         relayoutParams.reset();
         relayoutParams.mRunningTaskInfo = taskInfo;
         relayoutParams.mLayoutResId = captionLayoutId;
+        relayoutParams.mCaptionY = isAppHandle
+                ? context.getResources().getDimensionPixelSize(
+                        R.dimen.desktop_mode_app_handle_vertical_offset) : 0;
         relayoutParams.mCaptionHeightCalculator = getCaptionHeightCalculator(
                 taskInfo.getWindowingMode());
         relayoutParams.mCaptionWidthId = getCaptionWidthId(relayoutParams.mLayoutResId);
@@ -1846,8 +1849,8 @@ public class DesktopModeWindowDecoration extends WindowDecoration<WindowDecorLin
         final PointF inputPoint = offsetCaptionLocation(ev);
         return inputPoint.x >= mResult.mCaptionX
                 && inputPoint.x <= mResult.mCaptionX + mResult.mCaptionWidth
-                && inputPoint.y >= 0
-                && inputPoint.y <= mResult.mCaptionHeight;
+                && inputPoint.y >= mResult.mCaptionY
+                && inputPoint.y <= mResult.mCaptionY + mResult.mCaptionHeight;
     }
 
     /**

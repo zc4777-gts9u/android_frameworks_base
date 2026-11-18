@@ -142,7 +142,10 @@ public class AidlResponseHandler extends ISessionCallback.Stub {
                 Slog.e(TAG, "Received null enrollment frame for face enroll client.");
                 return;
             }
-            c.onEnrollmentFrame(AidlConversionUtils.toFrameworkEnrollmentFrame(frame));
+            final boolean samsungPoseEnrollment = mContext.getResources().getInteger(
+                    com.android.internal.R.integer.config_faceAuthVendorSensorOrientation) >= 0;
+            c.onEnrollmentFrame(AidlConversionUtils.toFrameworkEnrollmentFrame(
+                    frame, samsungPoseEnrollment));
         });
     }
 

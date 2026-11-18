@@ -102,6 +102,7 @@ public class FaceManager implements BiometricAuthenticator {
     private final IFaceService mService;
     private final Context mContext;
     private final IBinder mToken = new Binder();
+    private long mEnrollmentRequestId = -1;
     private Handler mHandler;
     private List<FaceSensorPropertiesInternal> mProps = new ArrayList<>();
     private HandlerExecutor mExecutor;
@@ -393,6 +394,7 @@ public class FaceManager implements BiometricAuthenticator {
                 final long enrollId = mService.enroll(userId, mToken, hardwareAuthToken,
                         new FaceServiceReceiver(faceCallback), mContext.getOpPackageName(),
                         disabledFeatures, previewSurface, debugConsent, options);
+                mEnrollmentRequestId = enrollId;
                 if (cancel != null) {
                     cancel.setOnCancelListener(new OnEnrollCancelListener(enrollId));
                 }
@@ -406,6 +408,26 @@ public class FaceManager implements BiometricAuthenticator {
             } finally {
                 Trace.endSection();
             }
+        }
+    }
+
+    /**
+     * Resume this manager's active enrollment after vendor-specific user guidance.
+     * The service verifies the enrollment owner and request before resuming.
+     * @return whether the resume request was delivered to the service
+     * @hide
+     */
+    @RequiresPermission(MANAGE_BIOMETRIC)
+    public boolean resumeEnrollment() {
+        if (mService == null || mEnrollmentRequestId < 0) {
+            return false;
+        }
+        try {
+            mService.resumeEnrollment(mToken, mEnrollmentRequestId);
+            return true;
+        } catch (RemoteException e) {
+            Slog.w(TAG, "Unable to resume face enrollment", e);
+            return false;
         }
     }
 

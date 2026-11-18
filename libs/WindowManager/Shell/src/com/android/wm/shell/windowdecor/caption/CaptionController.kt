@@ -145,7 +145,7 @@ abstract class CaptionController<T>(
             val captionHeight = getCaptionHeight()
             val captionWidth = getCaptionWidth()
             val captionX = (taskBounds.width() - captionWidth) / 2
-            val captionY = 0
+            val captionY = getCaptionY()
             val elements = occludingElements
             val localCaptionBounds =
                 Rect(captionX, captionY, captionX + captionWidth, captionY + captionHeight)
@@ -185,6 +185,7 @@ abstract class CaptionController<T>(
                 captionWidth,
                 captionHeight,
                 captionX,
+                captionY,
             )
             updateCaptionInsets(
                 params = params,
@@ -224,6 +225,8 @@ abstract class CaptionController<T>(
                 )
             return captionLayoutResult
         }
+
+    protected open fun getCaptionY(): Int = 0
 
     protected open fun getCaptionTopPadding(): Int = 0
 
@@ -298,12 +301,13 @@ abstract class CaptionController<T>(
         captionWidth: Int,
         captionHeight: Int,
         captionX: Int,
+        captionY: Int,
     ) {
         val captionSurface = captionViewHost?.surfaceControl ?: return
         startT
             .reparent(captionSurface, parentContainer)
             .setWindowCrop(captionSurface, captionWidth, captionHeight)
-            .setPosition(captionSurface, captionX.toFloat(), /* y= */ 0f)
+            .setPosition(captionSurface, captionX.toFloat(), captionY.toFloat())
             .setLayer(captionSurface, CAPTION_LAYER_Z_ORDER)
             .show(captionSurface)
         val layers = arrayOf<SurfaceControl?>(captionSurface)
@@ -325,7 +329,7 @@ abstract class CaptionController<T>(
             return
         }
 
-        val captionInsets = Rect(0, 0, 0, captionHeight)
+        val captionInsets = Rect(0, 0, 0, getCaptionY() + captionHeight)
         val newInsets =
             WindowDecorationInsets(
                 token = taskInfo.token,
@@ -360,7 +364,7 @@ abstract class CaptionController<T>(
         // positioned at the top of the task bounds, also in absolute coordinates.
         // So just reuse the task bounds and adjust the bottom coordinate.
         val captionInsetsRect = Rect(taskBounds)
-        captionInsetsRect.bottom = captionInsetsRect.top + captionHeight
+        captionInsetsRect.bottom = captionInsetsRect.top + localCaptionBounds.bottom
 
         // Caption bounding rectangles: these are optional, and are used to present finer
         // insets than traditional |Insets| to apps about where their content is occluded.

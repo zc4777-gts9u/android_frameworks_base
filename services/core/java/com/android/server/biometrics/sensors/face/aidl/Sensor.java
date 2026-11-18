@@ -191,7 +191,11 @@ public class Sensor {
 
         return new FaceStartUserClient(mContext, provider::getHalInstance, mToken, newUserId,
                 mSensorProperties.sensorId, BiometricLogger.ofUnknown(mContext, mHandler),
-                mBiometricContext, resultController, userStartedCallback);
+                mBiometricContext, resultController, userStartedCallback, vendorSession -> {
+                    if (mCurrentSession != null) {
+                        mCurrentSession.setSamsungSession(vendorSession);
+                    }
+                });
     }
 
     private static FaceSensorPropertiesInternal getFaceSensorPropertiesInternal(SensorProps prop,

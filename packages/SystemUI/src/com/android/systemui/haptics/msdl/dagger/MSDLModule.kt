@@ -17,8 +17,13 @@
 package com.android.systemui.haptics.msdl.dagger
 
 import android.annotation.SuppressLint
+import android.content.res.Resources
+import android.os.VibrationEffect
 import android.os.Vibrator
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.res.R
+import com.google.android.msdl.data.model.MSDLToken
 import com.google.android.msdl.domain.MSDLPlayer
 import dagger.Module
 import dagger.Provides
@@ -28,5 +33,16 @@ object MSDLModule {
     @SuppressLint("NonInjectedService")
     @Provides
     @SysUISingleton
-    fun provideMSDLPlayer(vibrator: Vibrator?): MSDLPlayer = MSDLPlayer.createPlayer(vibrator)
+    fun provideMSDLPlayer(vibrator: Vibrator?, @Main resources: Resources): MSDLPlayer {
+        // Slow DC motors cannot reproduce the stock unlock fallback's 5/10 ms pulses.
+        // Use the device-calibrated HAL effect only when primitives are unsupported.
+        val effectId = resources.getInteger(R.integer.config_msdlUnlockHapticEffect)
+        val fallbackEffects =
+            if (effectId >= 0) {
+                mapOf(MSDLToken.UNLOCK to VibrationEffect.createPredefined(effectId))
+            } else {
+                emptyMap()
+            }
+        return MSDLPlayer.createPlayer(vibrator, fallbackEffects = fallbackEffects)
+    }
 }

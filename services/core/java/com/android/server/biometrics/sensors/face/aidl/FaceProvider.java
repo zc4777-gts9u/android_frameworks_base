@@ -552,6 +552,21 @@ public class FaceProvider implements IBinder.DeathRecipient, ServiceProvider {
     }
 
     @Override
+    public void resumeEnrollment(int sensorId, @NonNull IBinder token, long requestId) {
+        mHandler.post(() -> {
+            final Sensor sensor = mFaceSensors.get(sensorId);
+            if (sensor == null) return;
+            final BaseClientMonitor client = sensor.getScheduler().getCurrentClient();
+            if (client instanceof FaceEnrollClient && token != null
+                    && token.equals(client.getToken()) && requestId == client.getRequestId()) {
+                ((FaceEnrollClient) client).resumeEnrollment();
+            } else {
+                Slog.w(TAG, "Ignoring resume for a non-matching enrollment");
+            }
+        });
+    }
+
+    @Override
     public long scheduleFaceDetect(@NonNull IBinder token,
             @NonNull ClientMonitorCallbackConverter callback,
             @NonNull FaceAuthenticateOptions options, int statsClient) {

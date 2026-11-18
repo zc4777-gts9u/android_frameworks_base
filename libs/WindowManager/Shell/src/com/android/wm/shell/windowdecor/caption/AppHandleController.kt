@@ -464,8 +464,8 @@ class AppHandleController(
         val inputPoint = offsetCaptionLocation(ev)
         return inputPoint.x >= captionLayoutResult.captionX &&
             inputPoint.x <= captionLayoutResult.captionX + captionLayoutResult.captionWidth &&
-            inputPoint.y >= 0 &&
-            inputPoint.y <= captionLayoutResult.captionHeight
+            inputPoint.y >= captionLayoutResult.captionY &&
+            inputPoint.y <= captionLayoutResult.captionY + captionLayoutResult.captionHeight
     }
 
     /** Offset the coordinates of a [MotionEvent] to be in the same coordinate space as caption. */
@@ -534,6 +534,11 @@ class AppHandleController(
         manageWindowsMenu?.animateClose()
         manageWindowsMenu = null
     }
+
+    override fun getCaptionY(): Int =
+        decorWindowContext.resources.getDimensionPixelSize(
+            R.dimen.desktop_mode_app_handle_vertical_offset
+        )
 
     override fun getCaptionHeight(): Int =
         SystemBarUtils.getStatusBarHeight(decorWindowContext.resources, display.cutout)

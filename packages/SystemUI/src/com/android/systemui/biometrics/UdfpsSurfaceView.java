@@ -22,10 +22,13 @@ import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.hardware.display.BrightnessInfo;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -58,9 +61,16 @@ public class UdfpsSurfaceView extends SurfaceView implements SurfaceHolder.Callb
     boolean mHasValidSurface;
 
     private Drawable mUdfpsIconPressed;
+    @Nullable private final UdfpsGhbmCompensation mGhbmCompensation;
 
     public UdfpsSurfaceView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        mGhbmCompensation = getResources().getBoolean(R.bool.config_udfpsKernelGhbm)
+                ? new UdfpsGhbmCompensation(
+                        getResources().getStringArray(R.array.config_udfpsGhbmNits),
+                        getResources().getInteger(R.integer.config_udfpsGhbmBacklightMaximum),
+                        getResources().getInteger(R.integer.config_udfpsGhbmTargetBacklight))
+                : null;
 
         // Make this SurfaceView draw on top of everything else in this window. This allows us to
         // 1) Always show the HBM circle on top of everything else, and
@@ -138,9 +148,24 @@ public class UdfpsSurfaceView extends SurfaceView implements SurfaceHolder.Callb
             Log.e(TAG, "drawIlluminationDot | the surface is destroyed or was never created.");
             return;
         }
+        Integer dimColor = null;
+        if (mGhbmCompensation != null) {
+            Display display = getDisplay();
+            BrightnessInfo info = display != null ? display.getBrightnessInfo() : null;
+            dimColor = mGhbmCompensation.getDimColor(info != null ? info.brightness : Float.NaN);
+            if (dimColor == null) {
+                Log.e(TAG, "Skipping kernel GHBM: brightness or panel calibration unavailable");
+                return;
+            }
+        }
         Canvas canvas = null;
         try {
             canvas = mHolder.lockHardwareCanvas();
+            if (dimColor != null) {
+                // The compensation and illumination dot share one buffer. Its FOD Z-order
+                // triggers the kernel brightness switch in the same DRM atomic commit.
+                canvas.drawColor(dimColor, PorterDuff.Mode.SRC);
+            }
             mUdfpsIconPressed.setBounds(
                     Math.round(sensorRect.left),
                     Math.round(sensorRect.top),

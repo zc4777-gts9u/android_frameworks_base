@@ -312,7 +312,7 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
         outResult.mCaptionWidth = params.mCaptionWidthId != Resources.ID_NULL
                 ? loadDimensionPixelSize(resources, params.mCaptionWidthId) : taskBounds.width();
         outResult.mCaptionX = (outResult.mWidth - outResult.mCaptionWidth) / 2;
-        outResult.mCaptionY = 0;
+        outResult.mCaptionY = params.mCaptionY;
         outResult.mCaptionTopPadding = params.mCaptionTopPadding;
         final Rect localCaptionBounds = new Rect(
                 outResult.mCaptionX,
@@ -480,7 +480,7 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
             SurfaceControl.Transaction startT, RelayoutResult<T> outResult) {
         startT.reparent(captionSurface, mDecorationContainerSurface)
                 .setWindowCrop(captionSurface, outResult.mCaptionWidth, outResult.mCaptionHeight)
-                .setPosition(captionSurface, outResult.mCaptionX, 0 /* y */)
+                .setPosition(captionSurface, outResult.mCaptionX, outResult.mCaptionY)
                 .setLayer(captionSurface, CAPTION_LAYER_Z_ORDER)
                 .show(captionSurface);
         SurfaceControl[] layers = {captionSurface};
@@ -508,7 +508,7 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
         // positioned at the top of the task bounds, also in absolute coordinates.
         // So just reuse the task bounds and adjust the bottom coordinate.
         final Rect captionInsetsRect = new Rect(taskBounds);
-        captionInsetsRect.bottom = captionInsetsRect.top + outResult.mCaptionHeight;
+        captionInsetsRect.bottom = captionInsetsRect.top + localCaptionBounds.bottom;
 
         final WindowDecorationInsets newInsets =
                 com.android.window.flags.Flags.improveFluidResizingPerformance()
@@ -829,6 +829,7 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
         int mLayoutResId;
         BiFunction<Context, Display, Integer> mCaptionHeightCalculator = (ctx, display) -> 0;
         int mCaptionWidthId;
+        int mCaptionY;
         Supplier<List<OccludingElement>> mOccludingElementsCalculator = () -> new ArrayList<>();
         boolean mLimitTouchRegionToSystemAreas;
         int mInputFeatures;
@@ -865,6 +866,7 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
             mCaptionHeightCalculator = (ctx, display) -> 0;
             mOccludingElementsCalculator = () -> new ArrayList<>();
             mCaptionWidthId = Resources.ID_NULL;
+            mCaptionY = 0;
             mLimitTouchRegionToSystemAreas = false;
             mInputFeatures = 0;
             mIsInsetSource = true;

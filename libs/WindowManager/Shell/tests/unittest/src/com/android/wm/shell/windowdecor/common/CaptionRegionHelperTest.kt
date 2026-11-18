@@ -149,6 +149,26 @@ class CaptionRegionHelperTest : ShellTestCase() {
     }
 
     @Test
+    fun calculateLimitedTouchableRegion_offsetCaption_preservesPosition() {
+        val task = createCustomAppHeaderTask(TASK_BOUNDS)
+        val captionBounds = Rect(450, 8, 550, 44)
+        val touchableRegion =
+            CaptionRegionHelper.calculateLimitedTouchableRegion(
+                context = mContext,
+                taskInfo = task,
+                displayExclusionRegion = Region(),
+                elements = emptyList(),
+                localCaptionBounds = captionBounds,
+            )
+
+        assertNotNull(touchableRegion)
+        assertThat(touchableRegion.bounds).isEqualTo(captionBounds)
+        assertThat(touchableRegion.contains(500, 7)).isFalse()
+        assertThat(touchableRegion.contains(500, 43)).isTrue()
+        assertThat(touchableRegion.contains(500, 44)).isFalse()
+    }
+
+    @Test
     fun calculateCustomizableRegion_opaque_returnsEmptyRegion() {
         val task = createOpaqueAppHeaderTask(TASK_BOUNDS)
 

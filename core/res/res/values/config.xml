@@ -1607,6 +1607,9 @@
     config_screenBrightnessSettingDefaultFloat instead -->
     <integer name="config_screenBrightnessSettingDefault">102</integer>
 
+    <!-- Map app window brightness to the same range and curve as the system slider. -->
+    <bool name="config_windowBrightnessUsesSystemSlider">false</bool>
+
     <!-- Maximum screen brightness setting when screen brightness capped in Wear Bedtime mode.
     The value must be in the range [0, 255]. -->
     <integer name="config_screenBrightnessCapForWearBedtimeMode">20</integer>
@@ -8074,4 +8077,6 @@
 
     <!-- Whether to explicitly disable the Video capability over IWLAN when Wi-Fi Calling is turned off. -->
     <bool name="config_disable_video_capability_when_wfc_off">false</bool>
+    <!-- Sensor angle for Samsung's optional face HAL rotation extension; -1 disables it. -->
+    <integer name="config_faceAuthVendorSensorOrientation">-1</integer>
 </resources>

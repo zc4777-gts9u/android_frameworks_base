@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The LineageOS Project. SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <!-- Compose global-HBM compensation in the illumination buffer for kernel FOD. -->
+    <bool name="config_udfpsKernelGhbm">false</bool>
+    <integer name="config_udfpsGhbmBacklightMaximum">0</integer>
+    <integer name="config_udfpsGhbmTargetBacklight">0</integer>
+    <string-array name="config_udfpsGhbmNits" translatable="false" />
+</resources>

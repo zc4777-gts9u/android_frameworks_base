@@ -103,6 +103,10 @@ import android.os.RemoteException;
 import android.os.SELinux;
 import android.os.ServiceManager;
 import android.os.SystemConfigManager;
+import android.hardware.display.BrightnessInfo;
+import android.hardware.display.DisplayManager;
+import android.view.Display;
+import com.android.internal.display.BrightnessSynchronizer;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -497,6 +501,11 @@ public class SettingsProvider extends ContentProvider {
                         && (setting == null || setting.isNull())) {
                     setting = getSystemSetting(name, requestingUserId, Context.DEVICE_ID_DEFAULT);
                 }
+                if (shouldNormalizeAppBrightness(name) && setting != null && !setting.isNull()) {
+                    // The scale can change without a settings database generation change.
+                    return Bundle.forPair(Settings.NameValueTable.VALUE,
+                            convertAppBrightness(setting.getValue(), false));
+                }
                 return packageValueForCallResult(SETTINGS_TYPE_SYSTEM, name, requestingUserId,
                         callingDeviceId, setting, isTrackingGeneration(args));
             }
@@ -666,7 +675,7 @@ public class SettingsProvider extends ContentProvider {
                 if (args.name != null) {
                     Setting setting = getGlobalSetting(args.name);
                     return packageSettingForQuery(setting, normalizedProjection,
-                            sReadableGlobalSettingsWithRedactedValue);
+                            sReadableGlobalSettingsWithRedactedValue, SETTINGS_TYPE_GLOBAL);
                 } else {
                     return getAllGlobalSettings(projection);
                 }
@@ -676,7 +685,7 @@ public class SettingsProvider extends ContentProvider {
                 if (args.name != null) {
                     Setting setting = getSecureSetting(args.name, userId, callingDeviceId);
                     return packageSettingForQuery(setting, normalizedProjection,
-                            sReadableSecureSettingsWithRedactedValue);
+                            sReadableSecureSettingsWithRedactedValue, SETTINGS_TYPE_SECURE);
                 } else {
                     return getAllSecureSettings(userId, Context.DEVICE_ID_DEFAULT, projection);
                 }
@@ -686,7 +695,7 @@ public class SettingsProvider extends ContentProvider {
                 if (args.name != null) {
                     Setting setting = getSystemSetting(args.name, userId, callingDeviceId);
                     return packageSettingForQuery(setting, normalizedProjection,
-                            sReadableSystemSettingsWithRedactedValue);
+                            sReadableSystemSettingsWithRedactedValue, SETTINGS_TYPE_SYSTEM);
                 } else {
                     return getAllSystemSettings(userId, Context.DEVICE_ID_DEFAULT, projection);
                 }
@@ -2049,6 +2058,9 @@ public class SettingsProvider extends ContentProvider {
                     continue;
                 }
                 String value = getEffectiveValue(setting, sReadableSystemSettingsWithRedactedValue);
+                if (shouldNormalizeAppBrightness(name)) {
+                    value = convertAppBrightness(value, false);
+                }
                 appendSettingToCursor(result, String.valueOf(setting.getId()), setting.getName(),
                         value, String.valueOf(setting.isValuePreservedInRestore()));
             }
@@ -2170,6 +2182,10 @@ public class SettingsProvider extends ContentProvider {
             if (!isValidMediaUri(name, value, callingUserId)) {
                 return false;
             }
+        }
+
+        if (value != null && shouldNormalizeAppBrightness(name)) {
+            value = convertAppBrightness(value, true);
         }
 
         final boolean success;
@@ -2874,6 +2890,64 @@ public class SettingsProvider extends ContentProvider {
                 "get/set setting for user", null);
     }
 
+    private boolean shouldNormalizeAppBrightness(String name) {
+        return Settings.System.SCREEN_BRIGHTNESS.equals(name)
+                && UserHandle.isApp(Binder.getCallingUid())
+                && getContext().checkCallingPermission(
+                        Manifest.permission.CONTROL_DISPLAY_BRIGHTNESS)
+                        != PackageManager.PERMISSION_GRANTED
+                && getContext().getResources().getBoolean(
+                        com.android.internal.R.bool.config_windowBrightnessUsesSystemSlider);
+    }
+
+    private String convertAppBrightness(String value, boolean toDisplayValue) {
+        if (value == null) {
+            return null;
+        }
+        final int brightness;
+        try {
+            brightness = Integer.parseInt(value);
+        } catch (NumberFormatException error) {
+            return value;
+        }
+        if (brightness < 0 || brightness > 255) {
+            return value;
+        }
+        final BrightnessInfo info;
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            info = getContext().getSystemService(DisplayManager.class)
+                    .getDisplay(Display.DEFAULT_DISPLAY).getBrightnessInfo();
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+        if (info == null || !(info.brightnessMaximum > info.brightnessMinimum)) {
+            return value;
+        }
+        final float min = info.brightnessMinimum;
+        final float max = info.brightnessMaximum;
+        final boolean linear = SystemProperties.getBoolean(
+                "sys.brightness.disable_gamma_conversion", false);
+        if (toDisplayValue) {
+            final float fraction = brightness / 255f;
+            final float normalized = linear ? fraction
+                    : BrightnessUtils.convertGammaToLinear(fraction);
+            final float raw = min + (max - min) * normalized;
+            return Integer.toString(
+                    BrightnessSynchronizer.brightnessFloatToInt(raw));
+        }
+        if (brightness >= BrightnessSynchronizer.brightnessFloatToInt(max)) {
+            return "255";
+        }
+        final float raw =
+                BrightnessSynchronizer.brightnessIntToFloat(brightness);
+        float normalized = MathUtils.constrain((raw - min) / (max - min), 0f, 1f);
+        if (!linear) {
+            normalized = BrightnessUtils.convertLinearToGamma(normalized);
+        }
+        return Integer.toString(Math.round(normalized * 255f));
+    }
+
     private Bundle packageValueForCallResult(int type, @NonNull String name, int userId,
             int deviceId, @Nullable Setting setting, boolean trackingGeneration) {
         if (!trackingGeneration) {
@@ -3109,14 +3183,17 @@ public class SettingsProvider extends ContentProvider {
         throw new IllegalArgumentException("Invalid URI:" + uri);
     }
 
-    private static MatrixCursor packageSettingForQuery(Setting setting, String[] projection,
-            ArrayMap<String, String> redactedSettingsMap) {
+    private MatrixCursor packageSettingForQuery(Setting setting, String[] projection,
+            ArrayMap<String, String> redactedSettingsMap, int type) {
         if (setting.isNull()) {
             return new MatrixCursor(projection, 0);
         }
 
         MatrixCursor cursor = new MatrixCursor(projection, 1);
         String value = getEffectiveValue(setting, redactedSettingsMap);
+        if (type == SETTINGS_TYPE_SYSTEM && shouldNormalizeAppBrightness(setting.getName())) {
+            value = convertAppBrightness(value, false);
+        }
         appendSettingToCursor(cursor, String.valueOf(setting.getId()), setting.getName(), value,
                 String.valueOf(setting.isValuePreservedInRestore()));
         return cursor;

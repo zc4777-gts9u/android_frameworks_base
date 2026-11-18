@@ -19059,6 +19059,16 @@ public final class Settings {
         public static final String LID_BEHAVIOR = "lid_behavior";
 
         /**
+         * Whether the lid switch may control display sleep, lock and wake.
+         * Independent of LID_BEHAVIOR, which selects the action when closed.
+         * Type: int (0 for disabled, 1 for enabled). Defaults to enabled.
+         * @hide
+         */
+        @Readable
+        public static final String LID_SWITCH_ENABLED = "lid_switch_enabled";
+
+
+        /**
          * Ephemeral app cookie max size in bytes.
          * <p>
          * Type: int

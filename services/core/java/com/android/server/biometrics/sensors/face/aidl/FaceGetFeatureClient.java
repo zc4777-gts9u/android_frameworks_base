@@ -93,8 +93,6 @@ public class FaceGetFeatureClient extends HalClientMonitor<AidlSession> implemen
     public void onFeatureGet(boolean success, byte[] features) {
         try {
             HashMap<Integer, Boolean> featureMap = getFeatureMap();
-            int[] featuresToSend = new int[featureMap.size()];
-            boolean[] featureState = new boolean[featureMap.size()];
 
             // The AIDL get feature api states that the presence of a feature means
             // it is enabled, while the lack thereof means its disabled.
@@ -103,6 +101,10 @@ public class FaceGetFeatureClient extends HalClientMonitor<AidlSession> implemen
                         true);
             }
 
+            // The HAL may enable additional features, such as REQUIRE_DIVERSE_POSES.
+            // Allocate after collecting the complete feature set.
+            int[] featuresToSend = new int[featureMap.size()];
+            boolean[] featureState = new boolean[featureMap.size()];
             int i = 0;
             for (Map.Entry<Integer, Boolean> entry : featureMap.entrySet()) {
                 featuresToSend[i] = entry.getKey();

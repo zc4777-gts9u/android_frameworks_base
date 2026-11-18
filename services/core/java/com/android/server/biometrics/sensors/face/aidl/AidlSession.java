@@ -18,6 +18,10 @@ package com.android.server.biometrics.sensors.face.aidl;
 
 import android.annotation.NonNull;
 import android.content.Context;
+import android.os.IBinder;
+import android.os.Parcel;
+import android.os.RemoteException;
+import android.util.Slog;
 import android.hardware.biometrics.face.ISession;
 import android.hardware.biometrics.face.V1_0.IBiometricsFace;
 
@@ -30,6 +34,17 @@ import java.util.function.Supplier;
  * and the backend.
  */
 public class AidlSession {
+
+    private static final String TAG = "FaceAidlSession";
+    private static final String SAMSUNG_SESSION_DESCRIPTOR =
+            "vendor.samsung.hardware.biometrics.face.ISehSession";
+    // Verified against CYG1 ISehSession V3: setRotation(int) is transaction 11
+    // and returns an int status after the standard Binder exception header.
+    private static final int SAMSUNG_SET_ROTATION = IBinder.FIRST_CALL_TRANSACTION + 10;
+
+    private IBinder mSamsungSession;
+    private boolean mSamsungExtensionChecked;
+    private int mSamsungRotation = -1;
 
     private final int mHalInterfaceVersion;
     @NonNull
@@ -55,6 +70,94 @@ public class AidlSession {
 
     @NonNull public ISession getSession() {
         return mSession;
+    }
+
+    void setSamsungSession(IBinder vendorSession) {
+        mSamsungSession = vendorSession;
+        mSamsungExtensionChecked = true;
+        mSamsungRotation = -1;
+    }
+
+    /** Synchronizes the optional Samsung camera rotation before a camera operation. */
+    void updateVendorRotation(Context context, int displayRotation) {
+        final int sensorOrientation = context.getResources().getInteger(
+                com.android.internal.R.integer.config_faceAuthVendorSensorOrientation);
+        if (mHalInterfaceVersion == 0 || sensorOrientation < 0
+                || displayRotation < 0 || displayRotation > 3) {
+            return;
+        }
+        // Front-facing sensor orientation relative to the current display.
+        final int rotation = (sensorOrientation + displayRotation * 90) % 360;
+        if (rotation == mSamsungRotation) {
+            return;
+        }
+        try {
+            if (!mSamsungExtensionChecked) {
+                final IBinder extension = mSession.asBinder().getExtension();
+                if (extension != null
+                        && SAMSUNG_SESSION_DESCRIPTOR.equals(extension.getInterfaceDescriptor())) {
+                    mSamsungSession = extension;
+                }
+                mSamsungExtensionChecked = true;
+            }
+            if (mSamsungSession == null) {
+                return;
+            }
+            final Parcel request = Parcel.obtain(mSamsungSession);
+            final Parcel reply = Parcel.obtain();
+            try {
+                request.writeInterfaceToken(SAMSUNG_SESSION_DESCRIPTOR);
+                request.writeInt(rotation);
+                if (!mSamsungSession.transact(SAMSUNG_SET_ROTATION, request, reply, 0)) {
+                    Slog.w(TAG, "Samsung face rotation transaction is unsupported");
+                    return;
+                }
+                reply.readException();
+                final int result = reply.readInt();
+                if (result == 0) {
+                    mSamsungRotation = rotation;
+                    Slog.d(TAG, "Samsung face rotation=" + rotation
+                            + ", displayRotation=" + displayRotation);
+                } else {
+                    Slog.w(TAG, "Samsung face rotation failed: " + result);
+                }
+            } finally {
+                reply.recycle();
+                request.recycle();
+            }
+        } catch (RemoteException | RuntimeException e) {
+            Slog.w(TAG, "Unable to update Samsung face rotation", e);
+        }
+    }
+
+    /** CYG1 ISehSession V3: resume() is transaction 7 and returns an int status. */
+    boolean resumeVendorEnrollment() {
+        if (mHalInterfaceVersion == 0 || mSamsungSession == null) {
+            return false;
+        }
+        final Parcel request = Parcel.obtain(mSamsungSession);
+        final Parcel reply = Parcel.obtain();
+        try {
+            request.writeInterfaceToken(SAMSUNG_SESSION_DESCRIPTOR);
+            if (!mSamsungSession.transact(IBinder.FIRST_CALL_TRANSACTION + 6,
+                    request, reply, 0)) {
+                return false;
+            }
+            reply.readException();
+            final int result = reply.readInt();
+            if (result != 0) {
+                Slog.w(TAG, "Samsung face enrollment resume failed: " + result);
+                return false;
+            }
+            Slog.d(TAG, "Resumed Samsung face enrollment after glasses guidance");
+            return true;
+        } catch (RemoteException | RuntimeException e) {
+            Slog.w(TAG, "Unable to resume Samsung face enrollment", e);
+            return false;
+        } finally {
+            reply.recycle();
+            request.recycle();
+        }
     }
 
     public int getUserId() {

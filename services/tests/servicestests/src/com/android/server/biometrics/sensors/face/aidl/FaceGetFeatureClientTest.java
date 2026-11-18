@@ -102,4 +102,55 @@ public class FaceGetFeatureClientTest {
         assertThat(featuresToSend.getValue()).asList().containsExactlyElementsIn(List.of(mFeature));
         assertThat(featureState.getValue()).asList().containsExactlyElementsIn(List.of(true));
     }
+    @Test
+    public void getFeatures_attentionAndDiversePoses_doesNotOverflow() throws RemoteException {
+        assertEnabledFeatures(new int[]{BiometricFaceConstants.FEATURE_REQUIRE_ATTENTION,
+                BiometricFaceConstants.FEATURE_REQUIRE_REQUIRE_DIVERSITY},
+                new int[]{BiometricFaceConstants.FEATURE_REQUIRE_ATTENTION,
+                        BiometricFaceConstants.FEATURE_REQUIRE_REQUIRE_DIVERSITY},
+                new boolean[]{true, true});
+    }
+
+    @Test
+    public void getFeatures_onlyDiversePoses_preservesAttentionDisabled() throws RemoteException {
+        assertEnabledFeatures(new int[]{BiometricFaceConstants.FEATURE_REQUIRE_REQUIRE_DIVERSITY},
+                new int[]{BiometricFaceConstants.FEATURE_REQUIRE_ATTENTION,
+                        BiometricFaceConstants.FEATURE_REQUIRE_REQUIRE_DIVERSITY},
+                new boolean[]{false, true});
+    }
+
+    @Test
+    public void getFeatures_none_preservesAttentionDisabled() throws RemoteException {
+        assertEnabledFeatures(new int[0],
+                new int[]{BiometricFaceConstants.FEATURE_REQUIRE_ATTENTION},
+                new boolean[]{false});
+    }
+
+    private void assertEnabledFeatures(int[] enabled, int[] expected, boolean[] expectedState)
+            throws RemoteException {
+        doAnswer(invocation -> {
+            byte[] features = new byte[enabled.length];
+            for (int i = 0; i < enabled.length; i++) {
+                features[i] = AidlConversionUtils.convertFrameworkToAidlFeature(enabled[i]);
+            }
+            mClient.onFeatureGet(true, features);
+            return null;
+        }).when(mSession).getFeatures();
+        ArgumentCaptor<int[]> features = ArgumentCaptor.forClass(int[].class);
+        ArgumentCaptor<boolean[]> states = ArgumentCaptor.forClass(boolean[].class);
+        mClient.start(mCallback);
+        verify(mListener).onFeatureGet(eq(true), features.capture(), states.capture());
+        assertThat(features.getValue().length).isEqualTo(expected.length);
+        assertThat(states.getValue().length).isEqualTo(expected.length);
+        for (int i = 0; i < expected.length; i++) {
+            int index = -1;
+            for (int j = 0; j < features.getValue().length; j++) {
+                if (features.getValue()[j] == expected[i]) index = j;
+            }
+            assertThat(index).isAtLeast(0);
+            assertThat(states.getValue()[index]).isEqualTo(expectedState[i]);
+        }
+        verify(mCallback).onClientFinished(mClient, true);
+    }
+
 }

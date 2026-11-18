@@ -454,6 +454,9 @@
     <!-- The elevation for the individual app handle menu. -->
     <dimen name="app_menu_elevation">4dp</dimen>
 
+    <!-- Move the complete fullscreen handle, including its input surface and menus. -->
+    <dimen name="desktop_mode_app_handle_vertical_offset">0dp</dimen>
+
     <!-- Height of desktop mode caption for fullscreen tasks. -->
     <dimen name="desktop_mode_fullscreen_decor_caption_height">36dp</dimen>
 

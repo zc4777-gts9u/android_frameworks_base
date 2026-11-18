@@ -255,6 +255,18 @@ public class FaceService extends SystemService {
             provider.second.cancelEnrollment(provider.first, token, requestId);
         }
 
+        @android.annotation.EnforcePermission(android.Manifest.permission.MANAGE_BIOMETRIC)
+        @Override // Binder call
+        public void resumeEnrollment(final IBinder token, long requestId) {
+            super.resumeEnrollment_enforcePermission();
+            final Pair<Integer, ServiceProvider> provider = mRegistry.getSingleProvider();
+            if (provider == null) {
+                Slog.w(TAG, "Null provider for resumeEnrollment");
+                return;
+            }
+            provider.second.resumeEnrollment(provider.first, token, requestId);
+        }
+
         @android.annotation.EnforcePermission(android.Manifest.permission.USE_BIOMETRIC_INTERNAL)
         @Override // Binder call
         public long authenticate(final IBinder token, final long operationId,

@@ -187,4 +187,7 @@ interface IFaceService {
     // Ensures that the scheduler is not stuck.
     @EnforcePermission("USE_BIOMETRIC_INTERNAL")
     oneway void scheduleWatchdog();
+    // Resume an enrollment paused for vendor-specific user guidance.
+    @EnforcePermission("MANAGE_BIOMETRIC")
+    void resumeEnrollment(IBinder token, long requestId);
 }

@@ -1637,7 +1637,15 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     }
 
+    private boolean isLidSwitchEnabled() {
+        return Settings.Global.getInt(mContext.getContentResolver(),
+                Settings.Global.LID_SWITCH_ENABLED, 1) != 0;
+    }
+
     private int getLidBehavior() {
+        if (!isLidSwitchEnabled()) {
+            return LID_BEHAVIOR_NONE;
+        }
         return Settings.Global.getInt(mContext.getContentResolver(),
                 Settings.Global.LID_BEHAVIOR, LID_BEHAVIOR_NONE);
     }
@@ -4946,6 +4954,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         applyLidSwitchState();
         updateRotation(true);
 
+        if (!isLidSwitchEnabled()) {
+            return;
+        }
         if (lidOpen) {
             mWindowWakeUpPolicy.wakeUpFromLid();
         } else if (getLidBehavior() != LID_BEHAVIOR_SLEEP) {

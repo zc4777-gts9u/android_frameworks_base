@@ -237,6 +237,9 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
 
     // The ID of the LogicalDisplay tied to this DisplayPowerController.
     private final int mDisplayId;
+    private final boolean mWindowBrightnessUsesSystemSlider;
+    private final boolean mDisableBrightnessGammaConversion;
+    private boolean mWindowBrightnessOverrideFromApp;
 
     // The ID of the display which this display follows for brightness purposes.
     private int mLeadDisplayId = Layout.NO_LEAD_DISPLAY;
@@ -500,6 +503,10 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
         mClock = mInjector.getClock();
         mLogicalDisplay = logicalDisplay;
         mDisplayId = mLogicalDisplay.getDisplayIdLocked();
+        mWindowBrightnessUsesSystemSlider = resources.getBoolean(
+                R.bool.config_windowBrightnessUsesSystemSlider);
+        mDisableBrightnessGammaConversion = SystemProperties.getBoolean(
+                "sys.brightness.disable_gamma_conversion", false);
         mDisplayDevice = mLogicalDisplay.getPrimaryDisplayDeviceLocked();
         IBinder displayToken = mDisplayDevice.getDisplayTokenLocked();
         DisplayDeviceInfo displayDeviceInfo = mDisplayDevice.getDisplayDeviceInfoLocked();
@@ -1397,7 +1404,6 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
                         mIsWearBedtimeModeEnabled,
                         shouldUseChargingMode);
         float brightnessState = displayBrightnessState.getBrightness();
-        float rawBrightnessState = displayBrightnessState.getBrightness();
         mBrightnessReasonTemp.set(displayBrightnessState.getBrightnessReason());
         boolean slowChange = displayBrightnessState.isSlowChange();
         // custom transition duration
@@ -1429,6 +1435,15 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
         boolean updateScreenBrightnessSetting =
                 displayBrightnessState.shouldUpdateScreenBrightnessSetting();
 
+        final boolean appBrightnessOverride = mWindowBrightnessUsesSystemSlider
+                && mIsDisplayInternal && mWindowBrightnessOverrideFromApp
+                && mBrightnessReasonTemp.getReason() == BrightnessReason.REASON_OVERRIDE
+                && !BrightnessUtils.isValidBrightnessValue(mPowerRequest.screenBrightnessOverride)
+                && BrightnessUtils.isValidBrightnessValue(brightnessState);
+        if (appBrightnessOverride) {
+            brightnessState = convertAppBrightness(brightnessState);
+        }
+        final float rawBrightnessState = brightnessState;
         if (!Float.isNaN(brightnessState)) {
             brightnessState = clampScreenBrightness(brightnessState);
         }
@@ -1617,7 +1632,8 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
 
             // We save the brightness info *after* the brightness setting has been changed and
             // adjustments made so that the brightness info reflects the latest value.
-            brightnessAdjusted = saveBrightnessInfo(getScreenBrightnessSetting(),
+            brightnessAdjusted = saveBrightnessInfo(
+                    appBrightnessOverride ? sdrAnimateValue : getScreenBrightnessSetting(),
                     animateValue, clampedState);
         } else {
             brightnessAdjusted = saveBrightnessInfo(getScreenBrightnessSetting(), clampedState);
@@ -2177,6 +2193,17 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
     private void loadScreenOffBrightnessSensor() {
         mScreenOffBrightnessSensor = SensorUtils.findSensor(mSensorManager,
                 mDisplayDeviceConfig.getScreenOffBrightnessSensor(), SensorUtils.NO_FALLBACK);
+    }
+
+    private float convertAppBrightness(float fraction) {
+        // Use the same endpoints as the system slider, including current brightness limits.
+        final float max = Math.min(mBrightnessRangeController.getCurrentBrightnessMax(),
+                mBrightnessClamperController.getMaxBrightness());
+        final float min = Math.min(max, Math.max(mBrightnessRangeController.getCurrentBrightnessMin(),
+                mBrightnessClamperController.getMinBrightness()));
+        final float linear = mDisableBrightnessGammaConversion ? fraction
+                : com.android.internal.display.BrightnessUtils.convertGammaToLinear(fraction);
+        return MathUtils.lerp(min, max, linear);
     }
 
     private float clampScreenBrightness(float value) {
@@ -2921,12 +2948,18 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
                     updatePowerState();
                     break;
 
-                case MSG_SET_WINDOW_MANAGER_BRIGHTNESS_OVERRIDE:
-                    if (mDisplayBrightnessController.updateWindowManagerBrightnessOverride(
-                            (DisplayManagerInternal.DisplayBrightnessOverrideRequest) msg.obj)) {
+                case MSG_SET_WINDOW_MANAGER_BRIGHTNESS_OVERRIDE: {
+                    final var request =
+                            (DisplayManagerInternal.DisplayBrightnessOverrideRequest) msg.obj;
+                    final boolean fromApp = request != null && request.fromApp;
+                    final boolean sourceChanged = mWindowBrightnessOverrideFromApp != fromApp;
+                    mWindowBrightnessOverrideFromApp = fromApp;
+                    if (mDisplayBrightnessController.updateWindowManagerBrightnessOverride(request)
+                            || (mWindowBrightnessUsesSystemSlider && sourceChanged)) {
                         updatePowerState();
                     }
                     break;
+                }
 
                 case MSG_STOP:
                     cleanupHandlerThreadAfterStop();

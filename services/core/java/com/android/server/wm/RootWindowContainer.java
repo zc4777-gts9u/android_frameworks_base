@@ -960,6 +960,7 @@ class RootWindowContainer extends WindowContainer<DisplayContent>
                 var brightnessOverride = new DisplayBrightnessOverrideRequest();
                 brightnessOverride.brightness = w.mAttrs.screenBrightness;
                 brightnessOverride.tag = w.getWindowTag();
+                brightnessOverride.fromApp = UserHandle.isApp(w.mOwnerUid);
                 mDisplayBrightnessOverrides.put(w.getDisplayId(), brightnessOverride);
             }
 

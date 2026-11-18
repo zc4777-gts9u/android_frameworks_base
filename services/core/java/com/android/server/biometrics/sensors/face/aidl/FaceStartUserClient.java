@@ -32,12 +32,14 @@ import com.android.server.biometrics.log.BiometricLogger;
 import com.android.server.biometrics.sensors.ClientMonitorCallback;
 import com.android.server.biometrics.sensors.StartUserClient;
 
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class FaceStartUserClient extends StartUserClient<IFace, ISession> {
     private static final String TAG = "FaceStartUserClient";
 
     @NonNull private final ISessionCallback mSessionCallback;
+    @Nullable private final Consumer<IBinder> mVendorSessionConsumer;
 
     public FaceStartUserClient(@NonNull Context context,
             @NonNull Supplier<IFace> lazyDaemon,
@@ -45,8 +47,20 @@ public class FaceStartUserClient extends StartUserClient<IFace, ISession> {
             @NonNull BiometricLogger logger, @NonNull BiometricContext biometricContext,
             @NonNull ISessionCallback sessionCallback,
             @NonNull UserStartedCallback<ISession> callback) {
+        this(context, lazyDaemon, token, userId, sensorId, logger, biometricContext,
+                sessionCallback, callback, null);
+    }
+
+    public FaceStartUserClient(@NonNull Context context,
+            @NonNull Supplier<IFace> lazyDaemon,
+            @Nullable IBinder token, int userId, int sensorId,
+            @NonNull BiometricLogger logger, @NonNull BiometricContext biometricContext,
+            @NonNull ISessionCallback sessionCallback,
+            @NonNull UserStartedCallback<ISession> callback,
+            @Nullable Consumer<IBinder> vendorSessionConsumer) {
         super(context, lazyDaemon, token, userId, sensorId, logger, biometricContext, callback);
         mSessionCallback = sessionCallback;
+        mVendorSessionConsumer = vendorSessionConsumer;
     }
 
     @Override
@@ -60,13 +74,20 @@ public class FaceStartUserClient extends StartUserClient<IFace, ISession> {
         try {
             final IFace hal = getFreshDaemon();
             final int version = hal.getInterfaceVersion();
-            final ISession newSession = hal.createSession(getSensorId(),
-                    getTargetUserId(), mSessionCallback);
+            final SamsungFaceSession samsung = mVendorSessionConsumer == null ? null
+                    : SamsungFaceSession.create(getContext(), hal, getSensorId(),
+                            getTargetUserId(), mSessionCallback);
+            final ISession newSession = samsung == null
+                    ? hal.createSession(getSensorId(), getTargetUserId(), mSessionCallback)
+                    : samsung.session;
             Binder.allowBlocking(newSession.asBinder());
             mUserStartedCallback.onUserStarted(getTargetUserId(), newSession, version);
+            if (mVendorSessionConsumer != null) {
+                mVendorSessionConsumer.accept(samsung == null ? null : samsung.vendorSession);
+            }
             getCallback().onClientFinished(this, true /* success */);
-        } catch (RemoteException e) {
-            Slog.e(TAG, "Remote exception", e);
+        } catch (RemoteException | RuntimeException e) {
+            Slog.e(TAG, "Unable to create face session", e);
             getCallback().onClientFinished(this, false /* success */);
         }
     }

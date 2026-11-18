@@ -86,7 +86,7 @@ object CaptionRegionHelper {
         taskPositionInParent: Point,
     ): Rect {
         return Rect(localCaptionBounds).apply {
-            offsetTo(taskPositionInParent.x, taskPositionInParent.y)
+            offset(taskPositionInParent.x, taskPositionInParent.y)
         }
     }
 

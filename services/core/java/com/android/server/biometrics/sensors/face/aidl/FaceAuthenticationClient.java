@@ -186,6 +186,7 @@ public class FaceAuthenticationClient
 
     private void doAuthenticate() throws RemoteException {
         final AidlSession session = getFreshDaemon();
+        session.updateVendorRotation(getContext(), getBiometricContext().getCurrentRotation());
 
         if (session.hasContextMethods()) {
             final OperationContextExt opContext = getOperationContext();
@@ -201,6 +202,8 @@ public class FaceAuthenticationClient
                 }
             }, ctx -> {
                 try {
+                    session.updateVendorRotation(
+                            getContext(), getBiometricContext().getCurrentRotation());
                     session.getSession().onContextChanged(ctx);
                 } catch (RemoteException e) {
                     Slog.e(TAG, "Unable to notify context changed", e);

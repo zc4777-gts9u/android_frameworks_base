@@ -594,6 +594,9 @@ public abstract class DisplayManagerInternal {
 
         // Tag used to identify the app window requesting the brightness override.
         public CharSequence tag;
+
+        // An ordinary app owns the window, rather than a system process.
+        public boolean fromApp;
     }
 
     /**

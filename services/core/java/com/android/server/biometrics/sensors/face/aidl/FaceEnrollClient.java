@@ -74,6 +74,8 @@ import java.util.function.Supplier;
 public class FaceEnrollClient extends EnrollClient<AidlSession> {
 
     private static final String TAG = "FaceEnrollClient";
+    private boolean mWaitingForGlassesRemoval;
+    private boolean mGlassesEnrollmentResumed;
 
     @NonNull private final int[] mEnrollIgnoreList;
     @NonNull private final int[] mEnrollIgnoreListVendor;
@@ -190,6 +192,14 @@ public class FaceEnrollClient extends EnrollClient<AidlSession> {
         // Log acquisition but don't send it to the client yet, since that's handled below.
         final int acquireInfo = frame.getData().getAcquiredInfo();
         final int vendorCode = frame.getData().getVendorCode();
+        if (acquireInfo == FACE_ACQUIRED_VENDOR && vendorCode == 1016
+                && !mGlassesEnrollmentResumed
+                && getContext().getResources().getInteger(
+                        com.android.internal.R.integer.config_faceAuthVendorSensorOrientation) >= 0) {
+            // The CYG1 recognizer pauses both preview and recognition at 70%.
+            // Wait for explicit confirmation that the user has removed their glasses.
+            mWaitingForGlassesRemoval = true;
+        }
         onAcquiredInternal(acquireInfo, vendorCode, false /* shouldSend */);
 
         final boolean shouldSend = shouldSendAcquiredMessage(acquireInfo, vendorCode);
@@ -208,6 +218,19 @@ public class FaceEnrollClient extends EnrollClient<AidlSession> {
                 Slog.w(TAG, "Failed to send enrollment frame", e);
                 mCallback.onClientFinished(this, false /* success */);
             }
+        }
+    }
+
+    void resumeEnrollment() {
+        if (!mWaitingForGlassesRemoval || mGlassesEnrollmentResumed) {
+            return;
+        }
+        if (getFreshDaemon().resumeVendorEnrollment()) {
+            mWaitingForGlassesRemoval = false;
+            mGlassesEnrollmentResumed = true;
+        } else {
+            stopHalOperation();
+            onError(android.hardware.biometrics.BiometricFaceConstants.FACE_ERROR_HW_UNAVAILABLE, 0);
         }
     }
 
@@ -265,6 +288,7 @@ public class FaceEnrollClient extends EnrollClient<AidlSession> {
 
     private void doEnroll(byte[] features) throws RemoteException {
         final AidlSession session = getFreshDaemon();
+        session.updateVendorRotation(getContext(), getBiometricContext().getCurrentRotation());
         final HardwareAuthToken hat =
                 HardwareAuthTokenUtils.toHardwareAuthToken(mHardwareAuthToken);
 
@@ -293,6 +317,8 @@ public class FaceEnrollClient extends EnrollClient<AidlSession> {
                 }
             }, ctx -> {
                 try {
+                    session.updateVendorRotation(
+                            getContext(), getBiometricContext().getCurrentRotation());
                     session.getSession().onContextChanged(ctx);
                 } catch (RemoteException e) {
                     Slog.e(TAG, "Unable to notify context changed", e);

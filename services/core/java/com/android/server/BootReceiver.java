@@ -177,6 +177,11 @@ public class BootReceiver extends BroadcastReceiver {
             }
         }.start();
 
+        // init.rc creates this instance only when bootreceiver tracing is enabled.
+        if (!SystemProperties.getBoolean("bootreceiver.enable", true)) {
+            return;
+        }
+
         FileDescriptor tracefd = null;
         try {
             tracefd = Os.open(ERROR_REPORT_TRACE_PIPE, O_RDONLY, 0600);

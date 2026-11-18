@@ -152,6 +152,9 @@ final class KeyGestureController {
     private static final int LAST_SEARCH_KEY_BEHAVIOR = SEARCH_KEY_BEHAVIOR_TARGET_ACTIVITY;
 
     // must match: config_keyChordPowerVolumeUp in config.xml
+    // Keep volume/power chords responsive without changing other shortcuts.
+    private static final long VOLUME_POWER_CHORD_INTERCEPT_DELAY_MILLIS = 80;
+
     static final int POWER_VOLUME_UP_BEHAVIOR_NOTHING = 0;
     static final int POWER_VOLUME_UP_BEHAVIOR_MUTE = 1;
     static final int POWER_VOLUME_UP_BEHAVIOR_GLOBAL_ACTIONS = 2;
@@ -367,7 +370,8 @@ final class KeyGestureController {
 
                         @Override
                         public long getKeyInterceptDelayMs() {
-                            return mClickPartialScreenshot ? 500 : 150;
+                            return mClickPartialScreenshot ? 500
+                                    : VOLUME_POWER_CHORD_INTERCEPT_DELAY_MILLIS;
                         }
                     });
 
@@ -489,6 +493,11 @@ final class KeyGestureController {
                                 new int[]{KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_POWER},
                                 gestureType, KeyGestureEvent.ACTION_GESTURE_COMPLETE,
                                 KeyGestureEvent.FLAG_CANCELLED);
+                    }
+
+                    @Override
+                    public long getKeyInterceptDelayMs() {
+                        return VOLUME_POWER_CHORD_INTERCEPT_DELAY_MILLIS;
                     }
 
                     @KeyGestureEvent.KeyGestureType
