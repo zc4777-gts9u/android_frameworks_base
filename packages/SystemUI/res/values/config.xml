@@ -812,6 +812,9 @@
         <item>26</item> <!-- MOUTH_COVERING_DETECTED -->
     </integer-array>
 
+    <!-- Whether a power-button reveal from a blank display waits for screen-on. -->
+    <bool name="config_waitForScreenOnBeforePowerButtonReveal">false</bool>
+
     <!-- Which device wake-ups will trigger passive auth. These values correspond with
          PowerManager#WakeReason. -->
     <integer-array name="config_face_auth_wake_up_triggers">

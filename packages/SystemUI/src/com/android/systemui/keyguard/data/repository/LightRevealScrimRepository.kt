@@ -74,6 +74,8 @@ interface LightRevealScrimRepository {
 
     val isAnimating: Boolean
 
+    val waitForScreenOnBeforePowerButtonReveal: Boolean
+
     /** Allows for transparency to see the wallpaper on AOD */
     val wallpaperSupportsAmbientMode: MutableStateFlow<Boolean>
 
@@ -98,6 +100,9 @@ constructor(
         val TAG = LightRevealScrimRepository::class.simpleName!!
         val DEFAULT_MAX_ALPHA = 1f
     }
+
+    override val waitForScreenOnBeforePowerButtonReveal =
+        context.resources.getBoolean(R.bool.config_waitForScreenOnBeforePowerButtonReveal)
 
     /** The reveal effect used if the device was locked/unlocked via the power button. */
     private val powerButtonRevealEffect: Flow<LightRevealEffect> =

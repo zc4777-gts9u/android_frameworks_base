@@ -34,6 +34,7 @@ import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.minmode.fakeMinModeManager
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.data.repository.fakePowerRepository
+import com.android.systemui.power.shared.model.ScreenPowerState
 import com.android.systemui.power.shared.model.WakeSleepReason
 import com.android.systemui.power.shared.model.WakefulnessState
 import com.android.systemui.scene.data.repository.Transition
@@ -183,6 +184,86 @@ class LightRevealScrimInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    fun powerButtonReveal_waitsForScreenOnWhenDisplayIsBlank() =
+        kosmos.testScope.runTest {
+            fakeLightRevealScrimRepository.waitForScreenOnBeforePowerButtonReveal = true
+            runCurrent()
+            fakeLightRevealScrimRepository.revealAnimatorRequests.clear()
+
+            startPowerButtonWake(ScreenPowerState.SCREEN_OFF)
+            runCurrent()
+            assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests).isEmpty()
+
+            fakePowerRepository.setScreenPowerState(ScreenPowerState.SCREEN_TURNING_ON)
+            runCurrent()
+            assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests).isEmpty()
+
+            fakePowerRepository.setScreenPowerState(ScreenPowerState.SCREEN_ON)
+            runCurrent()
+            assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests)
+                .containsExactly(
+                    RevealAnimatorRequest(reveal = true, duration = DEFAULT_REVEAL_DURATION)
+                )
+        }
+
+    @Test
+    fun powerButtonReveal_reversesImmediatelyWhileScreenIsTurningOff() =
+        kosmos.testScope.runTest {
+            fakeLightRevealScrimRepository.waitForScreenOnBeforePowerButtonReveal = true
+            runCurrent()
+            fakeLightRevealScrimRepository.revealAnimatorRequests.clear()
+
+            startPowerButtonWake(ScreenPowerState.SCREEN_TURNING_OFF)
+            runCurrent()
+            assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests)
+                .containsExactly(
+                    RevealAnimatorRequest(reveal = true, duration = DEFAULT_REVEAL_DURATION)
+                )
+        }
+
+    @Test
+    fun powerButtonReveal_sleepCancelsPendingReveal() =
+        kosmos.testScope.runTest {
+            fakeLightRevealScrimRepository.waitForScreenOnBeforePowerButtonReveal = true
+            runCurrent()
+            fakeLightRevealScrimRepository.revealAnimatorRequests.clear()
+
+            startPowerButtonWake(ScreenPowerState.SCREEN_TURNING_ON)
+            runCurrent()
+            assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests).isEmpty()
+
+            updateWakefulness(goToSleepReason = WakeSleepReason.POWER_BUTTON)
+            fakeKeyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.LOCKSCREEN,
+                    to = KeyguardState.DOZING,
+                    transitionState = TransitionState.STARTED,
+                )
+            )
+            runCurrent()
+            fakePowerRepository.setScreenPowerState(ScreenPowerState.SCREEN_ON)
+            runCurrent()
+            assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests)
+                .containsExactly(
+                    RevealAnimatorRequest(reveal = false, duration = DEFAULT_REVEAL_DURATION)
+                )
+        }
+
+    @Test
+    fun powerButtonReveal_withoutDeviceConfigStartsImmediately() =
+        kosmos.testScope.runTest {
+            runCurrent()
+            fakeLightRevealScrimRepository.revealAnimatorRequests.clear()
+
+            startPowerButtonWake(ScreenPowerState.SCREEN_TURNING_ON)
+            runCurrent()
+            assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests)
+                .containsExactly(
+                    RevealAnimatorRequest(reveal = true, duration = DEFAULT_REVEAL_DURATION)
+                )
+        }
+
+    @Test
     fun maxAlpha_doesNotSupportAmbientMode() =
         kosmos.testScope.runTest {
             val maxAlpha by collectLastValue(underTest.maxAlpha)
@@ -258,6 +339,23 @@ class LightRevealScrimInteractorTest : SysuiTestCase() {
 
             assertThat(maxAlpha).isEqualTo(1f)
         }
+
+    private suspend fun startPowerButtonWake(screenPowerState: ScreenPowerState) {
+        fakePowerRepository.setScreenPowerState(screenPowerState)
+        fakePowerRepository.updateWakefulness(
+            rawState = WakefulnessState.STARTING_TO_WAKE,
+            lastWakeReason = WakeSleepReason.POWER_BUTTON,
+            lastSleepReason = WakeSleepReason.POWER_BUTTON,
+            powerButtonLaunchGestureTriggered = false,
+        )
+        fakeKeyguardTransitionRepository.sendTransitionStep(
+            TransitionStep(
+                from = KeyguardState.DOZING,
+                to = KeyguardState.LOCKSCREEN,
+                transitionState = TransitionState.STARTED,
+            )
+        )
+    }
 
     private fun updateWakefulness(goToSleepReason: WakeSleepReason) {
         fakePowerRepository.updateWakefulness(

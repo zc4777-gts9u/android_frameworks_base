@@ -40,6 +40,8 @@ class FakeLightRevealScrimRepository : LightRevealScrimRepository {
     override val isAnimating: Boolean
         get() = false
 
+    override var waitForScreenOnBeforePowerButtonReveal = false
+
     override val wallpaperSupportsAmbientMode = MutableStateFlow(false)
 
     override val useDarkWallpaperScrim = MutableStateFlow(false)

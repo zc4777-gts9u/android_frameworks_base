@@ -39,7 +39,9 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
@@ -65,7 +67,7 @@ constructor(
 
     private fun listenForStartedKeyguardTransitionStep() {
         scope.launch {
-            transitionInteractor.startedKeyguardTransitionStep.collect {
+            transitionInteractor.startedKeyguardTransitionStep.collectLatest {
                 scrimLogger.d(TAG, "listenForStartedKeyguardTransitionStep", it)
                 val animationDuration =
                     if (it.to == KeyguardState.AOD && isLastSleepDueToFold) {
@@ -80,10 +82,24 @@ constructor(
                         DEFAULT_REVEAL_DURATION
                     }
 
-                repository.startRevealAmountAnimator(
-                    willBeRevealedInState(it.to),
-                    duration = animationDuration,
-                )
+                val reveal = willBeRevealedInState(it.to)
+                if (
+                    reveal &&
+                        repository.waitForScreenOnBeforePowerButtonReveal &&
+                        !screenIsShowingContent()
+                ) {
+                    val power = powerInteractor.get()
+                    val reason = WakeSleepReason.POWER_BUTTON
+                    if (power.detailedWakefulness.value.isAwakeFrom(reason)) {
+                        // The animator would otherwise advance while the scrim drops its frames.
+                        power.screenPowerState.first { it == ScreenPowerState.SCREEN_ON }
+                        if (!power.detailedWakefulness.value.isAwakeFrom(reason)) {
+                            return@collectLatest
+                        }
+                    }
+                }
+
+                repository.startRevealAmountAnimator(reveal, duration = animationDuration)
             }
         }
     }
