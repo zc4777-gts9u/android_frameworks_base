@@ -2,4 +2,6 @@
 <resources>
     <!-- Predefined effect ID for unsupported UNLOCK compositions; -1 keeps stock fallback. -->
     <integer name="config_msdlUnlockHapticEffect">-1</integer>
+    <!-- Predefined effect ID for unsupported switch compositions; -1 keeps stock fallback. -->
+    <integer name="config_msdlSwitchHapticEffect">-1</integer>
 </resources>

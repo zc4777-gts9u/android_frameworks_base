@@ -34,15 +34,21 @@ object MSDLModule {
     @Provides
     @SysUISingleton
     fun provideMSDLPlayer(vibrator: Vibrator?, @Main resources: Resources): MSDLPlayer {
-        // Slow DC motors cannot reproduce the stock unlock fallback's 5/10 ms pulses.
-        // Use the device-calibrated HAL effect only when primitives are unsupported.
-        val effectId = resources.getInteger(R.integer.config_msdlUnlockHapticEffect)
-        val fallbackEffects =
-            if (effectId >= 0) {
-                mapOf(MSDLToken.UNLOCK to VibrationEffect.createPredefined(effectId))
-            } else {
-                emptyMap()
+        // Slow DC motors cannot reproduce the stock fallback's short pulses.
+        // Use device-calibrated HAL effects only when primitives are unsupported.
+        val fallbackEffects = buildMap {
+            val unlockEffectId = resources.getInteger(R.integer.config_msdlUnlockHapticEffect)
+            if (unlockEffectId >= 0) {
+                put(MSDLToken.UNLOCK, VibrationEffect.createPredefined(unlockEffectId))
             }
+
+            val switchEffectId = resources.getInteger(R.integer.config_msdlSwitchHapticEffect)
+            if (switchEffectId >= 0) {
+                val switchEffect = VibrationEffect.createPredefined(switchEffectId)
+                put(MSDLToken.SWITCH_ON, switchEffect)
+                put(MSDLToken.SWITCH_OFF, switchEffect)
+            }
+        }
         return MSDLPlayer.createPlayer(vibrator, fallbackEffects = fallbackEffects)
     }
 }
