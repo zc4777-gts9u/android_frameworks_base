@@ -143,6 +143,7 @@ package com.android.server.display.config {
     method public final com.android.server.display.config.EvenDimmerMode getEvenDimmer();
     method @Nullable public final com.android.server.display.config.NonNegativeFloatToFloatMap getFrameRateVelocityMapping();
     method @Nullable public final com.android.server.display.config.HdrBrightnessConfig getHdrBrightnessConfig();
+    method @Nullable public final java.math.BigDecimal getHdrOnlyBrightnessRampRate();
     method public com.android.server.display.config.HighBrightnessMode getHighBrightnessMode();
     method public final com.android.server.display.config.IdleScreenRefreshRateTimeout getIdleScreenRefreshRateTimeout();
     method public final com.android.server.display.config.SensorDetails getLightSensor();
@@ -185,6 +186,7 @@ package com.android.server.display.config {
     method public final void setEvenDimmer(com.android.server.display.config.EvenDimmerMode);
     method public final void setFrameRateVelocityMapping(@Nullable com.android.server.display.config.NonNegativeFloatToFloatMap);
     method public final void setHdrBrightnessConfig(@Nullable com.android.server.display.config.HdrBrightnessConfig);
+    method public final void setHdrOnlyBrightnessRampRate(@Nullable java.math.BigDecimal);
     method public void setHighBrightnessMode(com.android.server.display.config.HighBrightnessMode);
     method public final void setIdleScreenRefreshRateTimeout(com.android.server.display.config.IdleScreenRefreshRateTimeout);
     method public final void setLightSensor(com.android.server.display.config.SensorDetails);

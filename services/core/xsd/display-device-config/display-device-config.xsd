@@ -59,6 +59,13 @@
                     <xs:annotation name="final"/>
                 </xs:element>
 
+                <!-- Perceptual brightness units per second for HDR-only transitions. -->
+                <xs:element type="nonNegativeDecimal" name="hdrOnlyBrightnessRampRate"
+                            minOccurs="0" maxOccurs="1">
+                    <xs:annotation name="nullable"/>
+                    <xs:annotation name="final"/>
+                </xs:element>
+
                 <xs:element type="displayQuirks" name="quirks" minOccurs="0" maxOccurs="1"/>
                 <xs:element type="autoBrightness" name="autoBrightness" minOccurs="0"
                             maxOccurs="1"/>

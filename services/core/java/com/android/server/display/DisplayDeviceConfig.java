@@ -957,6 +957,7 @@ public class DisplayDeviceConfig {
 
     @Nullable
     private HdrBrightnessData mHdrBrightnessData;
+    private float mHdrOnlyBrightnessRampRate;
 
     // Null if even dimmer is disabled - in config or by flag.
     @Nullable
@@ -1693,6 +1694,11 @@ public class DisplayDeviceConfig {
         return mHdrBrightnessData;
     }
 
+    /** Returns the HDR-only ramp rate in perceptual brightness units per second. */
+    public float getHdrOnlyBrightnessRampRate() {
+        return mHdrOnlyBrightnessRampRate;
+    }
+
     /**
      * @return Refresh rate range for specific profile id or null
      */
@@ -1942,6 +1948,7 @@ public class DisplayDeviceConfig {
                 + "\n"
                 + "mUsiVersion= " + mHostUsiVersion + "\n"
                 + "mHdrBrightnessData= " + mHdrBrightnessData + "\n"
+                + "mHdrOnlyBrightnessRampRate= " + mHdrOnlyBrightnessRampRate + "\n"
                 + "mBrightnessCapForWearBedtimeMode= " + mBrightnessCapForWearBedtimeMode
                 + "\n"
                 + "mEvenDimmerBrightnessData:" + (mEvenDimmerBrightnessData != null
@@ -2046,6 +2053,13 @@ public class DisplayDeviceConfig {
                 loadScreenOffBrightnessSensorValueToLuxFromDdc(config);
                 loadUsiVersion(config);
                 mHdrBrightnessData = HdrBrightnessData.loadConfig(config, transitionPointProvider);
+                final BigDecimal configuredHdrRampRate = config.getHdrOnlyBrightnessRampRate();
+                if (configuredHdrRampRate != null) {
+                    final float rate = configuredHdrRampRate.floatValue();
+                    if (Float.isFinite(rate)) {
+                        mHdrOnlyBrightnessRampRate = rate;
+                    }
+                }
                 loadBrightnessCapForWearBedtimeMode(config);
                 loadIdleScreenRefreshRateTimeoutConfigs(config);
                 loadBrightnessCapForMinMode(config);

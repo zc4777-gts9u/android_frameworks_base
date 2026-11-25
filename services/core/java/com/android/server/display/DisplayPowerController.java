@@ -1601,12 +1601,24 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
                     // display configuration. For now just do the fast animation
                     slowChange = false;
                 }
+                final float hdrOnlyRampRate = mDisplayDeviceConfig.getHdrOnlyBrightnessRampRate();
                 if (skipAnimation) {
                     animateScreenBrightness(animateValue, sdrAnimateValue,
                             SCREEN_ANIMATION_RATE_MINIMUM);
                 } else if (customAnimationRate > 0) {
                     animateScreenBrightness(animateValue, sdrAnimateValue,
                             customAnimationRate, /* ignoreAnimationLimits = */true);
+                } else if (hdrOnlyRampRate > 0f && isHdrOnlyChange && mIsDisplayInternal
+                        && state == Display.STATE_ON
+                        && mPowerRequest.policy == DisplayPowerRequest.POLICY_BRIGHT
+                        && !mPowerRequest.lowPowerMode
+                        && clampedState.getBrightnessMaxReason()
+                                == BrightnessInfo.BRIGHTNESS_MAX_REASON_NONE
+                        && (animateValue > sdrAnimateValue
+                                || currentBrightness > currentSdrBrightness)) {
+                    // Keep each HDR-only brightness step small while the panel changes luminance.
+                    animateScreenBrightness(animateValue, sdrAnimateValue,
+                            hdrOnlyRampRate, /* ignoreAnimationLimits = */true);
                 } else {
                     boolean isIncreasing = animateValue > currentBrightness;
                     final boolean idle = mAutomaticBrightnessController != null
