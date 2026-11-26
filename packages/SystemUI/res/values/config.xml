@@ -729,6 +729,10 @@
     <!-- Whether to use window background blur for the volume dialog. -->
     <bool name="config_volumeDialogUseBackgroundBlur">false</bool>
 
+    <!-- Predefined effect for volume keys that show the dialog. When set, slider animations
+         are silent and only the key event plays this effect. Set to -1 for slider feedback. -->
+    <integer name="config_volumeDialogKeyHapticEffect">-1</integer>
+
     <!-- The properties of the face auth front camera for outer display in pixels -->
     <integer-array name="config_face_auth_props">
         <!-- sensorLocationX -->

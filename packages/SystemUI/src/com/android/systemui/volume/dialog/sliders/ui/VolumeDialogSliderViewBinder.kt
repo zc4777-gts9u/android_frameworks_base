@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.integerResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -156,6 +157,8 @@ private fun VolumeDialogSlider(
                 hapticsViewModelFactory = hapticsViewModelFactory,
                 hapticConfigs =
                     VolumeHapticsConfigsProvider.continuousConfigs(SliderHapticFeedbackFilter()),
+                playDuringValueAnimation =
+                    integerResource(R.integer.config_volumeDialogKeyHapticEffect) < 0,
                 orientation =
                     if (isVolumeDialogVertical) {
                         Orientation.Vertical

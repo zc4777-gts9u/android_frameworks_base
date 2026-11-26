@@ -172,7 +172,11 @@ fun Slider(
                 }
                 animatable.animateTo(targetValue = debouncedValue, animationSpec = animationSpec) {
                     sliderState.value = this.value
-                    if (haptics is Haptics.Enabled && !haptics.isDiscrete()) {
+                    if (
+                        haptics is Haptics.Enabled &&
+                            haptics.playDuringValueAnimation &&
+                            !haptics.isDiscrete()
+                    ) {
                         hapticsViewModel?.onValueChange(this.value)
                     }
                 }
@@ -354,6 +358,7 @@ sealed interface Haptics {
         val hapticsViewModelFactory: SliderHapticsViewModel.Factory,
         val hapticConfigs: VolumeHapticsConfigs,
         val orientation: Orientation,
+        val playDuringValueAnimation: Boolean = true,
     ) : Haptics {
         fun isDiscrete(): Boolean = hapticConfigs.hapticFeedbackConfig.sliderStepSize != 0f
     }

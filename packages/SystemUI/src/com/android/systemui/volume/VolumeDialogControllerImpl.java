@@ -158,6 +158,7 @@ public class VolumeDialogControllerImpl implements VolumeDialogController, Dumpa
     private final State mState = new State();
     protected final MediaSessionsCallbacks mMediaSessionsCallbacksW;
     private final VibratorHelper mVibrator;
+    private final int mVolumeKeyHapticEffect;
     private final AudioSharingInteractor mAudioSharingInteractor;
     private final JavaAdapter mJavaAdapter;
     private final VolumeLogger mVolumeLogger;
@@ -240,6 +241,8 @@ public class VolumeDialogControllerImpl implements VolumeDialogController, Dumpa
         updateHapticsEnabled(); // set initial state
         mVibrator = vibrator;
         mHasVibrator = mVibrator.hasVibrator();
+        mVolumeKeyHapticEffect = mContext.getResources().getInteger(
+                R.integer.config_volumeDialogKeyHapticEffect);
         mAudioService = iAudioService;
         mVolumeControllerAdapter = volumeControllerAdapter;
         mKeyguardManager = keyguardManager;
@@ -597,6 +600,9 @@ public class VolumeDialogControllerImpl implements VolumeDialogController, Dumpa
         }
         if (showUI) {
             onShowRequestedW(Events.SHOW_REASON_VOLUME_CHANGED);
+            if (fromKey && mVolumeKeyHapticEffect >= 0) {
+                mVibrator.vibrate(mVolumeKeyHapticEffect);
+            }
         }
         if (showVibrateHint) {
             mCallbacks.onShowVibrateHint();
