@@ -17,8 +17,11 @@
 package com.android.systemui.scene.ui.composable
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.systemui.keyguard.ui.binder.LightRevealScrimViewBinder
 import com.android.systemui.keyguard.ui.viewmodel.LightRevealScrimViewModel
 import com.android.systemui.statusbar.LightRevealScrim
@@ -30,6 +33,8 @@ fun SceneRevealScrim(
     wallpaperViewModel: WallpaperViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val coversLockscreenContent by
+        viewModel.coversLockscreenContent.collectAsStateWithLifecycle(initialValue = false)
     AndroidView(
         factory = { context ->
             LightRevealScrim(context).apply {
@@ -40,6 +45,6 @@ fun SceneRevealScrim(
                 )
             }
         },
-        modifier = modifier,
+        modifier = modifier.zIndex(if (coversLockscreenContent) 1f else 0f),
     )
 }

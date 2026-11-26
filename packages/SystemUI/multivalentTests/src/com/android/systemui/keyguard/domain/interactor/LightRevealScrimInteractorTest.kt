@@ -186,12 +186,14 @@ class LightRevealScrimInteractorTest : SysuiTestCase() {
     @Test
     fun powerButtonReveal_waitsForScreenOnWhenDisplayIsBlank() =
         kosmos.testScope.runTest {
+            val coversLockscreen by collectLastValue(underTest.coversLockscreenContent)
             fakeLightRevealScrimRepository.waitForScreenOnBeforePowerButtonReveal = true
             runCurrent()
             fakeLightRevealScrimRepository.revealAnimatorRequests.clear()
 
             startPowerButtonWake(ScreenPowerState.SCREEN_OFF)
             runCurrent()
+            assertThat(coversLockscreen).isTrue()
             assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests).isEmpty()
 
             fakePowerRepository.setScreenPowerState(ScreenPowerState.SCREEN_TURNING_ON)
@@ -200,6 +202,7 @@ class LightRevealScrimInteractorTest : SysuiTestCase() {
 
             fakePowerRepository.setScreenPowerState(ScreenPowerState.SCREEN_ON)
             runCurrent()
+            assertThat(coversLockscreen).isFalse()
             assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests)
                 .containsExactly(
                     RevealAnimatorRequest(reveal = true, duration = DEFAULT_REVEAL_DURATION)
@@ -209,12 +212,14 @@ class LightRevealScrimInteractorTest : SysuiTestCase() {
     @Test
     fun powerButtonReveal_reversesImmediatelyWhileScreenIsTurningOff() =
         kosmos.testScope.runTest {
+            val coversLockscreen by collectLastValue(underTest.coversLockscreenContent)
             fakeLightRevealScrimRepository.waitForScreenOnBeforePowerButtonReveal = true
             runCurrent()
             fakeLightRevealScrimRepository.revealAnimatorRequests.clear()
 
             startPowerButtonWake(ScreenPowerState.SCREEN_TURNING_OFF)
             runCurrent()
+            assertThat(coversLockscreen).isFalse()
             assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests)
                 .containsExactly(
                     RevealAnimatorRequest(reveal = true, duration = DEFAULT_REVEAL_DURATION)

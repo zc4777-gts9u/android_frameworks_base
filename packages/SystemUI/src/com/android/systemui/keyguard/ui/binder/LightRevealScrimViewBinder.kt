@@ -61,6 +61,12 @@ object LightRevealScrimViewBinder {
                     }
                 }
 
+                launch("$TAG#viewModel.coversLockscreenContent") {
+                    viewModel.coversLockscreenContent.collect { cover ->
+                        revealScrim.translationZ = if (cover) 1f else 0f
+                    }
+                }
+
                 launch("$TAG#viewModel.revealAmount") {
                     viewModel.revealAmount.collect { revealScrim.revealAmount = it }
                 }

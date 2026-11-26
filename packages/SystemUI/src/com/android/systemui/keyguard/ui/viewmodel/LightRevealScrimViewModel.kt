@@ -20,6 +20,7 @@ import com.android.systemui.keyguard.domain.interactor.LightRevealScrimInteracto
 import com.android.systemui.statusbar.LightRevealEffect
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
@@ -32,10 +33,13 @@ class LightRevealScrimViewModel
 constructor(private val interactor: LightRevealScrimInteractor) {
     val lightRevealEffect: Flow<LightRevealEffect> = interactor.lightRevealEffect
     val revealAmount: Flow<Float> = interactor.revealAmount
+    val coversLockscreenContent: Flow<Boolean> = interactor.coversLockscreenContent
 
     /** Max alpha for the scrim + whether to animate the change */
     val maxAlpha: Flow<Pair<Float, Boolean>> =
-        interactor.maxAlpha
+        combine(interactor.maxAlpha, coversLockscreenContent) { alpha, coversLockscreen ->
+                if (coversLockscreen) 1f else alpha
+            }
             .map { alpha ->
                 Pair(
                     alpha,

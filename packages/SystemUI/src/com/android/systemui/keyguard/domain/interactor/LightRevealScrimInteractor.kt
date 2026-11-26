@@ -39,13 +39,18 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 @SysUISingleton
 class LightRevealScrimInteractor
@@ -60,6 +65,7 @@ constructor(
     private val minModeManagerOptional: Optional<MinModeManager>,
 ) {
     private val minModeManager = minModeManagerOptional.orElse(null)
+    private val coverLockscreenForPowerButtonWake = MutableStateFlow(false)
 
     init {
         listenForStartedKeyguardTransitionStep()
@@ -83,19 +89,20 @@ constructor(
                     }
 
                 val reveal = willBeRevealedInState(it.to)
-                if (
+                val reason = WakeSleepReason.POWER_BUTTON
+                val waitForScreenOn =
                     reveal &&
                         repository.waitForScreenOnBeforePowerButtonReveal &&
-                        !screenIsShowingContent()
-                ) {
+                        !screenIsShowingContent() &&
+                        powerInteractor.get().detailedWakefulness.value.isAwakeFrom(reason)
+                coverLockscreenForPowerButtonWake.value = waitForScreenOn
+                if (waitForScreenOn) {
                     val power = powerInteractor.get()
-                    val reason = WakeSleepReason.POWER_BUTTON
-                    if (power.detailedWakefulness.value.isAwakeFrom(reason)) {
-                        // The animator would otherwise advance while the scrim drops its frames.
-                        power.screenPowerState.first { it == ScreenPowerState.SCREEN_ON }
-                        if (!power.detailedWakefulness.value.isAwakeFrom(reason)) {
-                            return@collectLatest
-                        }
+                    // Cover the lockscreen while the physical display powers on.
+                    power.screenPowerState.first { it == ScreenPowerState.SCREEN_ON }
+                    if (!power.detailedWakefulness.value.isAwakeFrom(reason)) {
+                        coverLockscreenForPowerButtonWake.value = false
+                        return@collectLatest
                     }
                 }
 
@@ -155,13 +162,19 @@ constructor(
             .flowOn(backgroundDispatcher)
 
     val revealAmount =
-        repository.revealAmount.filter {
-            // When the screen is off we do not want to keep producing frames as this is causing
-            // (invisible) jank. However, we need to still pass through 1f and 0f to ensure that the
-            // correct end states are respected even if the screen turned off (or was still off)
-            // when the animation finished
-            screenIsShowingContent() || it == 1f || it == 0f
-        }
+        repository.revealAmount
+            .filter {
+                // Keep the end states when the display is blank and intermediate frames are dropped.
+                screenIsShowingContent() || it == 1f || it == 0f
+            }
+            .stateIn(scope, SharingStarted.Eagerly, 1f)
+
+    /** The wallpaper and lockscreen foreground should be revealed in the same frame. */
+    val coversLockscreenContent: Flow<Boolean> =
+        combine(coverLockscreenForPowerButtonWake, revealAmount) { cover, amount ->
+                cover && amount < 1f
+            }
+            .distinctUntilChanged()
 
     private fun screenIsShowingContent() =
         powerInteractor.get().screenPowerState.value != ScreenPowerState.SCREEN_OFF &&
